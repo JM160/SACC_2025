@@ -9,6 +9,7 @@ include_once("../php/Connect.php");
 $sql = "SELECT 
     t.id_trabalhos,
     t.titulo,
+    t.ordem,
     e.nome AS escola,
     c.nome_categoria,
     a.nome_area
@@ -18,7 +19,7 @@ LEFT JOIN Categorias c ON t.id_categoria = c.id_categoria
 LEFT JOIN Areas a ON t.id_areas = a.id_area
 WHERE 1=1";
 
-$sql .= " ORDER BY t.id_trabalhos DESC";
+$sql .= " ORDER BY t.ordem ASC, t.id_trabalhos ASC";
 $result = $pdo->query($sql);
 $trabalhos = $result->fetchAll(PDO::FETCH_ASSOC);
 $total_trabalhos = count($trabalhos);
@@ -76,6 +77,54 @@ $total_trabalhos = count($trabalhos);
         <span class="badge-count"><?= $total_trabalhos ?> Cadastrados</span>
       </div>
       <p class="page-subtitle">Gerencie e visualize os projetos e trabalhos científicos cadastrados</p>
+
+      <!-- este realiza o processo de importar o arquivp (finalizado) -->
+      <form action="../pdf/importar_arquivoCSV_trabalhos.php" method="POST" enctype="multipart/form-data">
+        <br>
+        <p style="margin-bottom: 0px;"><b>Cadratrar Jurados, importando os dados:</b></p>
+        <div style="display: flex; align-items: center; flex-direction: row;">
+          <input type="file" name="meu_arquivo" id="meu_arquivo" required style="display: none;" required>
+          <label for="meu_arquivo" class="botao-arquivo" id="EscolherArquivo">Escolha um Arquivo</label>
+          <span id="nome-arquivo" style="margin-left: 5px; font-family: sans-serif; color: #333;">Nenhum arquivo selecionado </span>
+        </div>
+        <button type="submit" class="botao-arquivo" id="importar">Importar</button>
+      </form>
+    </div>
+    </div>
+
+    <script>
+      document.getElementById('meu_arquivo').addEventListener('change', function() {
+        var nomeArquivo = this.files[0] ? this.files[0].name : "Nenhum arquivo selecionado";
+        document.getElementById('nome-arquivo').textContent = nomeArquivo;
+      });
+    </script>
+
+    <style>
+      .botao-arquivo {
+        background-color: #63aa65;
+        border: 2px solid #86efac;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        display: inline-block;
+        font-family: sans-serif;
+        transition: background-color 0.3s;
+      }
+
+      .botao-arquivo:hover {
+        background-color: #45a0498f;
+      }
+
+      #EscolherArquivo {
+        margin-top: 5px;
+      }
+
+      #importar {
+        background-color: #fcb42d;
+        border: 2px solid #efeb86;
+      }
+    </style>
     </div>
 
     <!-- Tabela de trabalhos estilo card Nítido -->
@@ -88,6 +137,7 @@ $total_trabalhos = count($trabalhos);
               <th>ESCOLA</th>
               <th>CATEGORIA</th>
               <th>ÁREA</th>
+              <th>Ordem</th>
               <th class="text-center pe-4">AÇÕES</th>
             </tr>
           </thead>
@@ -99,17 +149,18 @@ $total_trabalhos = count($trabalhos);
                   <td><?= htmlspecialchars($row['escola'] ?? '-') ?></td>
                   <td><span class="category-pill"><?= htmlspecialchars($row['nome_categoria'] ?? '-') ?></span></td>
                   <td><?= htmlspecialchars($row['nome_area'] ?? '-') ?></td>
+                  <td style="text-align: center;" ><?= htmlspecialchars($row['ordem'] ?? '-') ?></td>
                   <td class="text-center pe-4 text-nowrap">
                     <div class="d-inline-flex gap-2">
                       <a href="../php/Editatrabalhos.php?id=<?= $row['id_trabalhos'] ?>" class="btn-action-edit" title="Editar">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                          <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-1 3a.5.5 0 0 0 .606.606l3-1a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
-                          <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5h6a.5.5 0 0 0 0-1h-6A1.5 1.5 0 0 0 1 2.5z"/>
+                          <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-1 3a.5.5 0 0 0 .606.606l3-1a.5.5 0 0 0 .196-.12l6.813-6.814z" />
+                          <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5h6a.5.5 0 0 0 0-1h-6A1.5 1.5 0 0 0 1 2.5z" />
                         </svg>
                       </a>
                       <a href="../php/Excluirtrabalhos.php?id=<?= $row['id_trabalhos'] ?>" class="btn-action-delete" onclick="return confirm('Tem certeza que deseja excluir este trabalho?');" title="Excluir">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                          <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/>
+                          <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z" />
                         </svg>
                       </a>
                     </div>

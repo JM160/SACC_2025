@@ -1,6 +1,5 @@
 <?php
 require_once '../php/Connect.php';
-
 header('Content-Type: application/json');
 
 $categoria = $_GET['categoria'] ?? null;
@@ -16,10 +15,11 @@ if (!$categoria || !$jurado) {
 try {
   if ($categoria === '3') {
     $stmt = $pdo->prepare("
-    SELECT t.id_trabalhos, t.titulo, a.nome_area
+    SELECT t.id_trabalhos, t.titulo, t.ordem, a.nome_area
     FROM Trabalhos t
     LEFT JOIN Areas a ON t.id_areas = a.id_area
     WHERE t.id_categoria = ?
+    ORDER BY t.ordem ASC, t.id_trabalhos ASC
   ");
     $stmt->execute([$categoria]);
   } else {
@@ -28,15 +28,18 @@ try {
       echo json_encode([]);
       exit;
     }
+
     $stmt = $pdo->prepare("
-      SELECT t.id_trabalhos, t.titulo, a.nome_area
+      SELECT t.id_trabalhos, t.titulo, t.ordem, a.nome_area
       FROM Trabalhos t
       INNER JOIN Areas a ON t.id_areas = a.id_area
       WHERE t.id_categoria = ? AND t.id_areas = ?
         AND t.id_trabalhos NOT IN (
           SELECT id_trabalho FROM Jurado_Trabalho WHERE id_jurado = ?
         )
+      ORDER BY t.ordem ASC, t.id_trabalhos ASC
     ");
+
     $stmt->execute([$categoria, $area, $jurado]);
   }
 

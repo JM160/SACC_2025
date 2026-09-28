@@ -295,7 +295,7 @@ if (isset($_SESSION['login_error'])) {
       }
 
       if (novaSenha.length < 6) {
-        modalError.innerText = 'A senha deve possuir no mínimo 6 caracteres e uma letra Maiuscula e minuscula.';
+        modalError.innerText = 'A senha deve possuir no mínimo 6.';
         modalError.style.display = 'block';
         return;
       }

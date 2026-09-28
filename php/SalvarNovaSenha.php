@@ -39,6 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             exit();
         }
+        // Gera o hash seguro da nova senha antes de salvar no banco
+        $novaSenhaHash = password_hash($nova_senha, PASSWORD_DEFAULT);
+
         $stmt = $pdo->prepare("
             UPDATE Jurados
             SET senha_cadastrada = ?, primeiro_acesso = 1
@@ -46,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
 
         $stmt->execute([
-            $nova_senha,
+            $novaSenhaHash,
             $user['id_jurados']
         ]);
 

@@ -13,7 +13,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$user || $senha != $user['senha_cadastrada'] && $senha != $user['senha']) {
+        if (!$user) {
+            echo json_encode([
+                'status' => 'erro',
+                'mensagem' => 'Usuário ou senha incorretos.'
+            ]);
+            exit();
+        }
+
+        // Define a senha esperada com base no status de primeiro acesso:
+        // - Se primeiro_acesso == 0: aceita a senha temporária gerada pelo sistema.
+        // - Se primeiro_acesso == 1: exige a nova senha cadastrada pelo jurado.
+        $senhaEsperada = ((int)$user['primeiro_acesso'] === 0) ? $user['senha'] : $user['senha_cadastrada'];
+
+        // Validação de segurança: tenta validar como hash seguro (password_verify)
+        // ou faz comparação direta como fallback (para compatibilidade com senhas legadas em texto puro)
+        $senhaValida = password_verify($senha, $senhaEsperada) || ($senha === $senhaEsperada);
+
+        if (!$senhaValida) {
             echo json_encode([
                 'status' => 'erro',
                 'mensagem' => 'Usuário ou senha incorretos.'

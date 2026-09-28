@@ -12,6 +12,23 @@ $idJurado = $_SESSION['id_jurados'];
 $idTrabalho = $_POST['id_trabalho'];
 
 try {
+    $stmtCheck = $pdo->prepare("
+        SELECT t.id_categoria, t.id_areas, j.avaliacoes_finalizadas
+        FROM Trabalhos t
+        JOIN Jurados j ON j.id_jurados = ?
+        WHERE t.id_trabalhos = ?
+    ");
+    $stmtCheck->execute([$idJurado, $idTrabalho]);
+    $infoCheck = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+
+    if ($infoCheck) {
+        $chaveCheck = ($infoCheck['id_categoria'] ?? 0) . '_' . ($infoCheck['id_areas'] ?? 0);
+        $finalizadasCheck = array_filter(explode(',', (string)$infoCheck['avaliacoes_finalizadas']));
+        if (in_array($chaveCheck, $finalizadasCheck) || $infoCheck['avaliacoes_finalizadas'] === '1') {
+            die("Esta área já foi finalizada e suas avaliações não podem mais ser alteradas.");
+        }
+    }
+
     $pdo->beginTransaction();
 
     // Loop para atualizar os 9 critérios listados na tabela do HTML

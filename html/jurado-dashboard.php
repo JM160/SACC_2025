@@ -19,14 +19,20 @@ $stmtUser->execute([$idJurado]);
 $result = $stmtUser->fetch(PDO::FETCH_ASSOC);
 
 $userName = $result ? $result['nome'] : 'Usuário';
-$avaliacoesFinalizadas = $result ? (int)$result['avaliacoes_finalizadas'] : 0;
+$avaliacoesFinalizadasRaw = $result ? (string)$result['avaliacoes_finalizadas'] : '';
+$finalizadasArray = array_filter(explode(',', $avaliacoesFinalizadasRaw));
 
 $stmt = $pdo->prepare("
   SELECT 
     t.id_trabalhos, 
-    t.titulo, 
-    e.nome AS nome_escola, 
-    c.nome_categoria, 
+    t.titulo,
+    t.id_categoria,
+    e.id_categoria_escola,
+    t.id_areas,
+    t.ordem,
+    e.nome AS nome_escola,
+    ce.categoria_da_escola AS categoria_escola,
+    c.nome_categoria,
     a.nome_area,
     (
       SELECT COUNT(*) 
@@ -39,17 +45,42 @@ $stmt = $pdo->prepare("
   LEFT JOIN Escolas e ON t.id_escolas = e.id_escolas
   LEFT JOIN Categorias c ON t.id_categoria = c.id_categoria
   LEFT JOIN Areas a ON t.id_areas = a.id_area
+  LEFT JOIN Categoria_escolas ce ON e.id_categoria_escola = ce.id
   WHERE jt.id_jurado = ?
+  ORDER BY t.ordem ASC, t.id_trabalhos ASC
 ");
 $stmt->execute([$idJurado]);
 $trabalhos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Cálculo das estatísticas
+// Cálculo das estatísticas e agrupamento por Categoria + Área
 $totalAtribuidos = count($trabalhos);
 $avaliados = 0;
+$grupos = [];
+
 foreach ($trabalhos as $t) {
   if ($t['avaliacao_existente'] > 0) {
     $avaliados++;
+  }
+  
+  $idCat = $t['id_categoria'] ?? 0;
+  $idArea = $t['id_areas'] ?? 0;
+  $chave = $idCat . '_' . $idArea;
+  
+  if (!isset($grupos[$chave])) {
+    $grupos[$chave] = [
+      'id_categoria' => $idCat,
+      'id_area' => $idArea,
+      'nome_categoria' => $t['nome_categoria'] ?? 'Geral',
+      'nome_area' => $t['nome_area'] ?? 'Geral',
+      'total' => 0,
+      'avaliados' => 0,
+      'finalizado' => in_array($chave, $finalizadasArray) || $avaliacoesFinalizadasRaw === '1'
+    ];
+  }
+  
+  $grupos[$chave]['total']++;
+  if ($t['avaliacao_existente'] > 0) {
+    $grupos[$chave]['avaliados']++;
   }
 }
 $pendentes = $totalAtribuidos - $avaliados;
@@ -104,17 +135,35 @@ $pendentes = $totalAtribuidos - $avaliados;
         <h1 class="fw-bolder text-dark mb-1" style="font-size: 1.85rem; letter-spacing: -0.02em;">Lista de Trabalhos para <?= htmlspecialchars($userName) ?></h1>
         <p class="text-secondary mb-0" style="font-size: 0.95rem;">Gerencie e registre suas avaliações de projetos científicos vinculados à sua comissão.</p>
 
-        <!-- Botão Finalizar Avaliações Integrado ao Cabeçalho -->
-        <?php if (!isset($avaliacoesFinalizadas) || $avaliacoesFinalizadas == 0): ?>
-          <div class="mt-3">
-            <button type="button" class="btn text-white fw-bold shadow-sm rounded-3 d-inline-flex align-items-center gap-2" id="btnFinalizarAvaliacoes" style="background-color: #f97316; border: none; padding: 10px 24px; font-size: 0.95rem;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-circle-fill" viewBox="0 0 16 16">
-                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l4.992-5.5a.75.75 0 0 0-.018-1.042z" />
-              </svg>
-              Finalizar Avaliações
-            </button>
-          </div>
-        <?php endif; ?>
+        <!-- Botões de Finalizar por Categoria e Área -->
+        <div class="mt-3 d-flex flex-wrap gap-2">
+          <?php foreach ($grupos as $chave => $grupo): ?>
+            <?php if ($grupo['finalizado']): ?>
+              <div class="alert alert-success py-2 px-3 mb-0 d-inline-flex align-items-center gap-2 rounded-3 shadow-sm" style="font-size: 0.9rem; margin-bottom: 0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-circle-fill" viewBox="0 0 16 16">
+                  <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l4.992-5.5a.75.75 0 0 0-.018-1.042z"/>
+                </svg>
+                <span>Avaliação da <strong><?= htmlspecialchars($grupo['nome_categoria']) ?> — <?= htmlspecialchars($grupo['nome_area']) ?></strong> finalizada</span>
+              </div>
+            <?php elseif ($grupo['total'] > 0 && $grupo['avaliados'] == $grupo['total']): ?>
+              <button type="button" class="btn text-white fw-bold shadow-sm rounded-3 d-inline-flex align-items-center gap-2 btnFinalizarArea" 
+                      data-cat="<?= $grupo['id_categoria'] ?>" 
+                      data-area="<?= $grupo['id_area'] ?>"
+                      data-nome-cat="<?= htmlspecialchars($grupo['nome_categoria']) ?>"
+                      data-nome-area="<?= htmlspecialchars($grupo['nome_area']) ?>"
+                      style="background-color: #f97316; border: none; padding: 10px 20px; font-size: 0.9rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-circle-fill" viewBox="0 0 16 16">
+                  <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l4.992-5.5a.75.75 0 0 0-.018-1.042z" />
+                </svg>
+                Finalizar Avaliação (<?= htmlspecialchars($grupo['nome_categoria']) ?> - <?= htmlspecialchars($grupo['nome_area']) ?>)
+              </button>
+            <?php else: ?>
+              <div class="alert alert-warning py-2 px-3 mb-0 d-inline-flex align-items-center gap-2 rounded-3 shadow-sm" style="font-size: 0.9rem; color: #9a3412; background-color: #ffedd5; border-color: #fed7aa; margin-bottom: 0;">
+                <span>Avaliação da <strong><?= htmlspecialchars($grupo['nome_categoria']) ?> — <?= htmlspecialchars($grupo['nome_area']) ?></strong> pendente (<?= $grupo['avaliados'] ?>/<?= $grupo['total'] ?>)</span>
+              </div>
+            <?php endif; ?>
+          <?php endforeach; ?>
+        </div>
       </div>
 
       <div class="d-flex gap-2 flex-wrap">
@@ -141,6 +190,7 @@ $pendentes = $totalAtribuidos - $avaliados;
             <th style="width: 23%;">ESCOLA</th>
             <th style="width: 17%;">CATEGORIA</th>
             <th style="width: 18%;">ÁREA</th>
+            <th style="width: 10%;">Ordem</th>
             <th style="width: 10%; text-align: center;">AÇÕES</th>
           </tr>
         </thead>
@@ -151,31 +201,41 @@ $pendentes = $totalAtribuidos - $avaliados;
             </tr>
           <?php else: ?>
             <?php foreach ($trabalhos as $trabalho): ?>
+              <?php 
+                $chaveTrabalho = ($trabalho['id_categoria'] ?? 0) . '_' . ($trabalho['id_areas'] ?? 0);
+                $isGrupoFinalizado = in_array($chaveTrabalho, $finalizadasArray) || $avaliacoesFinalizadasRaw === '1';
+              ?>
               <tr>
                 <td class="td-titulo"><?= htmlspecialchars($trabalho['titulo']) ?></td>
-                <td class="td-escola"><?= htmlspecialchars($trabalho['nome_escola'] ?? 'N/D') ?></td>
+                <td class="td-escola"><?= $trabalho['categoria_escola'] . ' ' . htmlspecialchars($trabalho['nome_escola'] ?? 'N/D') ?></td>
                 <td class="td-categoria"><?= htmlspecialchars($trabalho['nome_categoria'] ?? 'N/D') ?></td>
                 <td class="td-area"><?= htmlspecialchars($trabalho['nome_area'] ?? 'N/D') ?></td>
+                <td style="text-align: center;" class="td-area"><?= $trabalho['ordem'] ?? 0 ?></td>
                 <td style="text-align: center; vertical-align: middle;">
                   <?php if ($trabalho['avaliacao_existente'] == 0): ?>
-                    <button
-                      class="btn text-white fw-bold shadow-sm rounded-3 abrir-modal-avaliacao"
-                      style="background-color: #f97316; width: 115px; padding: 9px 20px; font-size: 0.9rem;"
-                      data-bs-toggle="modal"
-                      data-bs-target="#avaliarModal"
-                      data-titulo="<?= htmlspecialchars($trabalho['titulo']) ?>"
-                      data-escola="<?= htmlspecialchars($trabalho['nome_escola'] ?? 'N/D') ?>"
-                      data-categoria="<?= htmlspecialchars($trabalho['nome_categoria'] ?? 'N/D') ?>"
-                      data-area="<?= htmlspecialchars($trabalho['nome_area'] ?? 'N/D') ?>"
-                      data-id="<?= $trabalho['id_trabalhos'] ?>">
-                      Avaliar
-                    </button>
+                    <?php if (!$isGrupoFinalizado): ?>
+                      <button
+                        class="btn text-white fw-bold shadow-sm rounded-3 abrir-modal-avaliacao"
+                        style="background-color: #f97316; width: 115px; padding: 9px 20px; font-size: 0.9rem;"
+                        data-bs-toggle="modal"
+                        data-bs-target="#avaliarModal"
+                        data-titulo="<?= htmlspecialchars($trabalho['titulo']) ?>"
+                        data-escola="<?= htmlspecialchars($trabalho['nome_escola'] ?? 'N/D') ?>"
+                        data-categoria="<?= htmlspecialchars($trabalho['nome_categoria'] ?? 'N/D') ?>"
+                        data-id="<?= $trabalho['id_trabalhos'] ?>">
+                        Avaliar
+                      </button>
+                    <?php else: ?>
+                      <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary fw-bold" style="width: 115px; padding: 6px 14px;">
+                        Finalizado
+                      </span>
+                    <?php endif; ?>
                   <?php else: ?>
                     <div class="d-flex flex-column align-items-center justify-content-center gap-2">
                       <div class="badge rounded-pill bg-success bg-opacity-10 text-success fw-bold" style="width: 115px; padding: 6px 14px; color: #15803d !important; font-size: 0.82rem;">
                         Avaliado
                       </div>
-                      <?php if ($avaliacoesFinalizadas == 0): ?>
+                      <?php if (!$isGrupoFinalizado): ?>
                         <button
                           class="btn text-white fw-bold shadow-sm rounded-3 d-inline-flex justify-content-center align-items-center gap-1 abrir-modal-editar"
                           style="background-color: #3b8754; width: 115px; padding: 7px 14px; font-size: 0.85rem;"
@@ -188,17 +248,6 @@ $pendentes = $totalAtribuidos - $avaliados;
                           data-id="<?= $trabalho['id_trabalhos'] ?>">
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
                             <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
-                          </svg>
-                          Editar
-                        </button>
-                      <?php else: ?>
-                        <button
-                          type="button"
-                          class="btn fw-bold rounded-3 d-inline-flex justify-content-center align-items-center gap-1"
-                          style="background-color: #d1d5db; color: #6b7280; width: 115px; padding: 7px 14px; font-size: 0.85rem; cursor: not-allowed; opacity: 0.75;"
-                          disabled>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10z" />
                           </svg>
                           Editar
                         </button>
@@ -371,6 +420,25 @@ $pendentes = $totalAtribuidos - $avaliados;
           </div>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Confirmar Finalização Geral -->
+  <div class="modal fade" id="modalConfirmarFinalizacao" tabindex="-1" aria-labelledby="modalConfirmarFinalizacaoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
+        <div class="modal-header" style="border-bottom: 1px solid #f1f5f9; padding: 16px 20px;">
+          <h5 class="modal-title" id="modalConfirmarFinalizacaoLabel" style="font-weight: 700; color: #0f172a;">Atenção: Finalizar Avaliações</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body" style="padding: 20px; color: #334155; font-size: 0.95rem;">
+          <p class="mb-0">Tem certeza que deseja finalizar e enviar todas as suas avaliações? <br><br> <strong class="text-danger">Importante:</strong> Após a confirmação, essa ação não poderá ser desfeita e você não poderá mais editar nenhuma nota.</p>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid #f1f5f9; padding: 14px 20px;">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 600;">Voltar e Revisar</button>
+          <button type="button" class="btn" id="btnConfirmarFinalizacaoReal" style="background-color: #ea580c; color: #ffffff; border-radius: 8px; font-weight: 700;">Sim, finalizar agora</button>
+        </div>
       </div>
     </div>
   </div>
@@ -648,29 +716,52 @@ $pendentes = $totalAtribuidos - $avaliados;
       });
     });
 
-    const btnFinalizarAvaliacoes = document.getElementById('btnFinalizarAvaliacoes');
-    
-    if (btnFinalizarAvaliacoes) {
-      btnFinalizarAvaliacoes.addEventListener('click', async () => {
-        const confirmar = confirm('Tem certeza que deseja finalizar todas as avaliações? Depois disso, você não poderá mais editar as avaliações.');
-        if (!confirmar) {
-          return;
-        }
+    let catParaFinalizar = 0;
+    let areaParaFinalizar = 0;
+
+    const modalConfirmarFinalizacaoEl = document.getElementById('modalConfirmarFinalizacao');
+    const modalConfirmarFinalizacao = modalConfirmarFinalizacaoEl ? new bootstrap.Modal(modalConfirmarFinalizacaoEl) : null;
+    const btnConfirmarFinalizacaoReal = document.getElementById('btnConfirmarFinalizacaoReal');
+
+    $('.btnFinalizarArea').on('click', function() {
+      catParaFinalizar = $(this).data('cat');
+      areaParaFinalizar = $(this).data('area');
+      const nomeCat = $(this).data('nome-cat');
+      const nomeArea = $(this).data('nome-area');
+
+      $('#modalConfirmarFinalizacaoLabel').text('Atenção: Finalizar ' + nomeCat + ' — ' + nomeArea);
+      if (modalConfirmarFinalizacao) {
+        modalConfirmarFinalizacao.show();
+      }
+    });
+
+    if (btnConfirmarFinalizacaoReal) {
+      btnConfirmarFinalizacaoReal.addEventListener('click', async () => {
+        btnConfirmarFinalizacaoReal.disabled = true;
+        btnConfirmarFinalizacaoReal.innerHTML = 'Finalizando...';
 
         try {
+          const formData = new FormData();
+          formData.append('id_categoria', catParaFinalizar);
+          formData.append('id_area', areaParaFinalizar);
+
           const response = await fetch('../php/FinalizarAvaliacoes.php', {
-            method: 'POST'
+            method: 'POST',
+            body: formData
           });
 
           const data = await response.json();
           if (data.status === 'sucesso') {
-            alert('Avaliações finalizadas com sucesso.');
             window.location.reload();
           } else {
             alert(data.mensagem || 'Não foi possível finalizar as avaliações.');
+            btnConfirmarFinalizacaoReal.disabled = false;
+            btnConfirmarFinalizacaoReal.innerHTML = 'Sim, finalizar agora';
           }
         } catch (error) {
           alert('Erro ao finalizar as avaliações.');
+          btnConfirmarFinalizacaoReal.disabled = false;
+          btnConfirmarFinalizacaoReal.innerHTML = 'Sim, finalizar agora';
         }
       });
     }

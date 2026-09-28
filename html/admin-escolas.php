@@ -103,6 +103,54 @@ $total_escolas = count($escolas);
                 <span class="badge-count"><?= $total_escolas ?> Cadastradas</span>
             </div>
             <p class="page-subtitle">Gerencie e visualize as instituições de ensino cadastradas no sistema</p>
+
+            <!-- este realiza o processo de importar o arquivp (finalizado) -->
+     <form action="../pdf/importar_arquivoCSV_escolas.php" method="POST" enctype="multipart/form-data">
+        <br>
+        <p style="margin-bottom: 0px;"><b>Cadratrar Jurados, importando os dados:</b></p>
+        <div style="display: flex; align-items: center; flex-direction: row;">
+          <input type="file" name="meu_arquivo" id="meu_arquivo" required style="display: none;" required>
+          <label for="meu_arquivo" class="botao-arquivo" id="EscolherArquivo">Escolha um Arquivo</label>
+          <span id="nome-arquivo" style="margin-left: 5px; font-family: sans-serif; color: #333;">Nenhum arquivo selecionado </span>
+        </div>
+        <button type="submit" class="botao-arquivo" id="importar">Importar</button>
+      </form>
+    </div>
+    </div>
+
+    <script>
+      document.getElementById('meu_arquivo').addEventListener('change', function() {
+        var nomeArquivo = this.files[0] ? this.files[0].name : "Nenhum arquivo selecionado";
+        document.getElementById('nome-arquivo').textContent = nomeArquivo;
+      });
+    </script>
+
+    <style>
+      .botao-arquivo {
+        background-color: #63aa65;
+        border: 2px solid #86efac;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        display: inline-block;
+        font-family: sans-serif;
+        transition: background-color 0.3s;
+      }
+
+      .botao-arquivo:hover {
+        background-color: #45a0498f;
+      }
+
+      #EscolherArquivo{
+        margin-top: 5px;
+      }
+
+      #importar {
+        background-color: #fcb42d;
+        border: 2px solid #efeb86;
+      }
+    </style>
         </div>
 
         <div class="admin-card-table">

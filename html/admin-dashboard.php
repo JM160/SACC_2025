@@ -65,12 +65,12 @@ $sql = "SELECT
     a.nome_area,
     e.IDEB,
     e.total_trabalhos,
-    ce.categoria_da_escola
+    ce.categoria_da_escola AS categoria_escola
 FROM Trabalhos t
 LEFT JOIN Escolas e ON t.id_escolas = e.id_escolas
 LEFT JOIN Jurados j ON t.id_jurados = j.id_jurados
 LEFT JOIN Categorias c ON t.id_categoria = c.id_categoria
-LEFT JOIN categoria_escolas ce ON e.id_categoria_escola = ce.id
+LEFT JOIN Categoria_escolas ce ON e.id_categoria_escola = ce.id
 LEFT JOIN Areas a ON t.id_areas = a.id_area
 ORDER BY t.id_trabalhos DESC";
 
@@ -80,7 +80,7 @@ $row = $result->fetch(PDO::FETCH_ASSOC);
 $stmt = $pdo->query("SELECT id_area,nome_area FROM Areas ORDER BY nome_area ASC");
 $areas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$stmt = $pdo->query("SELECT id_escolas,nome FROM Escolas ORDER BY nome ASC");
+$stmt = $pdo->query("SELECT id_escolas,nome, id_categoria_escola, ce.categoria_da_escola AS categoria_escola FROM Escolas LEFT JOIN Categoria_escolas ce ON escolas.id_categoria_escola = ce.id ORDER BY nome ASC");
 $escolas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $stmt = $pdo->query("SELECT id_categoria,nome_categoria FROM Categorias ORDER BY nome_categoria ASC");
@@ -137,7 +137,7 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
       </div>
       <ul class="nav flex-column">
         <li class="active"><a href="admin-dashboard.php"><i><img src="../assets/img/dashboard.svg" class="dashboard"></i> <span
-              class="label-text">Dashboard</span></a></li> 
+              class="label-text">Dashboard</span></a></li>
         <li><a href="admin-escolas.php"><i><img src="../assets/img/escolas.svg" class="escola"></i> <span
               class="label-text">Escolas</span></a></li>
         <li><a href="admin-trabalhos.php"><i><img src="../assets/img/trabalhos.svg" class="trabalho"></i> <span
@@ -164,19 +164,29 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
 
       <div class="d-flex flex-wrap gap-2 mb-4">
         <button class="admin-action-btn" data-bs-toggle="modal" data-bs-target="#modalInstituicao">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
           Cadastrar Instituição
         </button>
         <button class="admin-action-btn" data-bs-toggle="modal" data-bs-target="#modalJurado">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="8.5" cy="7" r="4" />
+            <path d="M20 8v6M23 11h-6" />
+          </svg>
           Cadastrar Jurado
         </button>
         <button class="admin-action-btn" data-bs-toggle="modal" data-bs-target="#modalTrabalho">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
           Cadastrar Trabalho
         </button>
         <button class="admin-action-btn" data-bs-toggle="modal" data-bs-target="#modalAssociacao">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
           Associar Jurado
         </button>
       </div>
@@ -202,16 +212,16 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
                   <option value="6">INDÍGENA</option>
                   <option value="7">Municipal</option>
                 </select>
-                
+
                 <div id="campo-digitacaoEscola" style="display:none;">
-                  <label for="instituicao-nome" class="form-label" >Nome da Instituição</label>
+                  <label for="instituicao-nome" class="form-label">Nome da Instituição</label>
                   <input type="text" id="instituicao-nome" class="form-control" name="nome"
                     placeholder="Digite o nome da instituição" required>
                 </div>
 
                 <input type="hidden" name="categoria_escolas" id="categoria_escolas">
 
-                <label for="instituicao-localidade" class="form-label mt-2">Localidade</label>
+                <label for="instituicao-localidade" class="form-label mt-2">Município</label>
                 <select id="instituicao-localidade" class="form-control" name="municipio">
                   <option selected disabled>Selecione...</option>
                   <option value="1">Caridade</option>
@@ -361,7 +371,7 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
                   <option value="">Selecione a Escola</option>
                   <?php foreach ($escolas as $escola): ?>
                     <option value="<?= htmlspecialchars($escola['id_escolas']) ?>">
-                      <?= htmlspecialchars($escola['nome']) ?>
+                      <?= $escola['categoria_escola'] . " ".  htmlspecialchars($escola['nome']) ?>
                     </option>
                   <?php endforeach; ?>
                 </select>
@@ -393,6 +403,8 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
                     <option value="7">Ensino Médio</option>
                   </select>
                 </div>
+                <label for="trabalho-ordem" class="form-label">Digite a ordem do trabalho</label>
+                <input type="text" id="trabalho-ordem" class="form-control" name="ordem" placeholder="Insira...." required>
                 <input type="submit" value="Enviar" class="btn btn-success" style="margin-top:10px;">
               </form>
             </div>
@@ -617,7 +629,7 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
             'escola' => $row['escola'],
             'focalizada' => $focalizada,
             'ide' => $ide,
-            'IDEB' => $row['IDEB']?? '-',
+            'IDEB' => $row['IDEB'] ?? '-',
             'total_trabalhos' => $row['total_trabalhos'] ?? '-',
             'categoria' => $row['categoria'],
             'area' => $row['area'],
@@ -656,7 +668,8 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
           }
         }
 
-        function comparaTrabalhos($a, $b, $criteriosDesempate) {
+        function comparaTrabalhos($a, $b, $criteriosDesempate)
+        {
           if ($a['nota_final'] > $b['nota_final']) return -1;
           if ($a['nota_final'] < $b['nota_final']) return 1;
           foreach ($criteriosDesempate as $crit) {
@@ -667,10 +680,10 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
           }
           if ($a['total_trabalhos'] > $b['total_trabalhos']) return -1;
           if ($a['total_trabalhos'] < $b['total_trabalhos']) return 1;
-        
+
           if ($a['IDEB'] > $b['IDEB']) return -1;
           if ($a['IDEB'] < $b['IDEB']) return 1;
-          
+
           /*
           if ($a['focalizada'] && !$b['focalizada']) return -1;
           if (!$a['focalizada'] && $b['focalizada']) return 1;
@@ -680,11 +693,14 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
           return 0;
         }
 
-        function criterioDesempateUsado($a, $b, $criteriosDesempate) {
+        function criterioDesempateUsado($a, $b, $criteriosDesempate)
+        {
           foreach ($criteriosDesempate as $index => $crit) {
             $notaA = $a['criterios'][$crit] ?? 0;
             $notaB = $b['criterios'][$crit] ?? 0;
-            if ($notaA != $notaB) { return ['indice' => $index + 1, 'criterio' => "Critério #" . ($index + 1)]; }
+            if ($notaA != $notaB) {
+              return ['indice' => $index + 1, 'criterio' => "Critério #" . ($index + 1)];
+            }
           }
           /* -- DESATIVADOS A PEDIDO --
           if ($a['focalizada'] !== $b['focalizada']) { return ['indice' => 'Focalizada', 'criterio' => 'Escola focalizada']; }
@@ -738,7 +754,7 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
                   echo '<tr>';
                   echo '<td class="text-center"><span class="rank-badge">' . $posicao . 'º</span></td>';
                   echo '<td class="text-start td-item-title">' . htmlspecialchars($trab['titulo']) . '</td>';
-                  echo '<td class="text-start">'. $trab['Modalidade'] . ' ' . htmlspecialchars($trab['escola']) . '</td>';
+                  echo '<td class="text-start">' . $trab['Modalidade'] . ' ' . htmlspecialchars($trab['escola']) . '</td>';
                   echo '<td><span class="category-pill">' . htmlspecialchars($trab['categoria']) . '</span></td>';
                   echo '<td>' . htmlspecialchars($trab['area'] ?? 'Sem área') . '</td>';
                   echo '<td class="fw-semibold">' . (
@@ -794,13 +810,12 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
       $('#overlay').removeClass('show');
     }
 
-  $('#idCadEscola').submit(function() {
+    $('#idCadEscola').submit(function() {
       const categoria = $('#instituicao-categoria option:selected').text();
       const nome = $('#instituicao-nome').val();
 
       $('#categoria_escolas').val(categoria + ' - ' + nome);
-    }
-  );
+    });
 
     $(window).on('resize', function() {
       if (window.innerWidth > 768) {
@@ -896,51 +911,51 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
 
     const trabalhosCadastrados = <?= json_encode($trabalhosCadastrados, JSON_UNESCAPED_UNICODE) ?>;
 
-$('#idCadTrabalho').submit(function(event) {
-    const escola = $('#escola').val();
-    const categoria = $('#trabalho-categoria').val();
-    const area = $('#trabalho-area').is(':visible') ? $('#trabalho-area select[name="area"]').val() : $('#trabalho-area2 select[name="area"]').val();
-    const titulo = $('#trabalho-titulo').val().trim().toLowerCase();
+    $('#idCadTrabalho').submit(function(event) {
+      const escola = $('#escola').val();
+      const categoria = $('#trabalho-categoria').val();
+      const area = $('#trabalho-area').is(':visible') ? $('#trabalho-area select[name="area"]').val() : $('#trabalho-area2 select[name="area"]').val();
+      const titulo = $('#trabalho-titulo').val().trim().toLowerCase();
 
-    if (!escola || !area || !titulo) {
+      if (!escola || !area || !titulo) {
         return;
-    }
+      }
 
-    const mesmoTrabalho = trabalhosCadastrados.some(function(trabalho) {
+      const mesmoTrabalho = trabalhosCadastrados.some(function(trabalho) {
         return String(trabalho.id_escolas) === String(escola) &&
-               String(trabalho.id_areas) === String(area) &&
-               trabalho.titulo.trim().toLowerCase() === titulo;
-    });
+          String(trabalho.id_areas) === String(area) &&
+          trabalho.titulo.trim().toLowerCase() === titulo;
+      });
 
-    if (mesmoTrabalho) {
+      if (mesmoTrabalho) {
         event.preventDefault();
         alert('Esta escola já possui um trabalho nesta área.');
         return;
-    }
+      }
 
-    const trabalhoEmOutraArea = trabalhosCadastrados.some(function(trabalho) {
+      const trabalhoEmOutraArea = trabalhosCadastrados.some(function(trabalho) {
         return String(trabalho.id_escolas) === String(escola) &&
-               trabalho.titulo.trim().toLowerCase() === titulo &&
-               String(trabalho.id_areas) !== String(area);
-    });
+          trabalho.titulo.trim().toLowerCase() === titulo &&
+          String(trabalho.id_areas) !== String(area);
+      });
 
-    if (trabalhoEmOutraArea) {
+      if (trabalhoEmOutraArea) {
         event.preventDefault();
         alert('Este trabalho já está cadastrado em outra área.');
         return;
-    }
+      }
 
-    const escolaNaArea = trabalhosCadastrados.some(function(trabalho) {
+      const escolaNaArea = trabalhosCadastrados.some(function(trabalho) {
         return String(trabalho.id_escolas) === String(escola) &&
-               String(trabalho.id_areas) === String(area);
-    });
+          String(trabalho.id_areas) === String(area);
+      });
 
-    if (escolaNaArea) {
+      if (escolaNaArea) {
         event.preventDefault();
         alert('Esta escola já possui um trabalho cadastrado nesta área.');
         return;
-    }
-});
+      }
+    });
 
     $(document).ready(function() {
       $('#associar-categoria').on('change', function() {
@@ -1007,7 +1022,7 @@ $('#idCadTrabalho').submit(function(event) {
           });
         }
       });
-      
+
 
       $('#area-select').on('change', function() {
         let categoriaId = $('#associar-categoria').val();

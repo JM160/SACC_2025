@@ -12,7 +12,8 @@ $stmt = $pdo->prepare("
         id_escolas,
         id_jurados,
         id_areas,
-        id_categoria
+        id_categoria,
+        ordem
     FROM Trabalhos
     WHERE id_trabalhos = ?
 ");
@@ -75,6 +76,9 @@ $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
             <option value="6" <?= $trabalho['id_areas'] == 6 ? 'selected' : '' ?>>Ensino Fundamental</option>
             <option value="7" <?= $trabalho['id_areas'] == 7 ? 'selected' : '' ?>>Ensino Médio</option>
         </select>
+
+        <label for="titulo">Ordem do trabalho</label>
+        <input type="text" class="form-control" name="ordem" required value="<?= htmlspecialchars($trabalho['ordem']) ?>">
 
         <input type="submit" class="btn btn-success mt-3" value="Atualizar">
         <a href="../html/admin-trabalhos.php" class="btn btn-secondary mt-3">Cancelar</a>

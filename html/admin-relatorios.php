@@ -14,6 +14,7 @@ $trabalhos = $pdo->query("
   SELECT 
     t.id_trabalhos,
     t.titulo,
+    t.ordem,
     e.nome AS escola,
     c.nome_categoria AS categoria,
     a.nome_area AS area,
@@ -23,7 +24,7 @@ $trabalhos = $pdo->query("
   LEFT JOIN Categorias c ON t.id_categoria = c.id_categoria
   LEFT JOIN categoria_escolas ce ON e.id_categoria_escola = ce.id
   LEFT JOIN Areas a ON t.id_areas = a.id_area
-  ORDER BY t.titulo
+  ORDER BY t.ordem ASC
 ")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -150,6 +151,7 @@ $trabalhos = $pdo->query("
               <th class="text-start">Escola</th>
               <th>Categoria</th>
               <th>Área</th>
+              <th>Ordem</th>
               <th class="text-center" style="width: 160px;">Download</th>
             </tr>
           </thead>
@@ -167,6 +169,7 @@ $trabalhos = $pdo->query("
                 <td class="text-start"><?= htmlspecialchars(($t['categoria_da_escola'] ?? '') . ' ' . $t['escola']) ?></td>
                 <td><span class="category-pill"><?= htmlspecialchars($t['categoria'] ?? '—') ?></span></td>
                 <td><?= htmlspecialchars($t['area'] ?? 'Sem área') ?></td>
+                <td><?= htmlspecialchars($t['ordem'] ?? 0) ?></td>
                 <td class="text-center">
                   <?php if ($id_jurado): ?>
                     <div class="d-inline-flex gap-1 justify-content-center">

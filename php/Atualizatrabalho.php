@@ -6,19 +6,22 @@ $titulo = $_POST['titulo'] ?? '';
 $escola = $_POST['escola'] ?? null;
 $categoria = $_POST['categoria'] ?? null;
 $area = $_POST['area'] ?? null;
+$ordem = $_POST['ordem'] ?? null;
 
 if (!$id || !$titulo || !$escola || !$categoria) {
     die("Campos obrigatórios não preenchidos.");
 }
 
 try {
+
     $stmt = $pdo->prepare("
         UPDATE Trabalhos
         SET
             titulo = :titulo,
             id_escolas = :escola,
             id_categoria = :categoria,
-            id_areas = :area
+            id_areas = :area,
+            ordem = :ordem
         WHERE id_trabalhos = :id
     ");
 
@@ -27,13 +30,18 @@ try {
         ':escola' => $escola,
         ':categoria' => $categoria,
         ':area' => $area ?: null,
+        ':ordem' => $ordem !== '' ? $ordem : null,
         ':id' => $id
     ]);
 
     header("Location: ../html/admin-trabalhos.php?status=sucesso");
+
     exit;
 
 } catch (PDOException $e) {
+
     error_log("Erro ao atualizar trabalho: " . $e->getMessage());
+
     die("Erro ao atualizar o trabalho.");
+
 }

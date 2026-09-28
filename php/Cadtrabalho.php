@@ -9,9 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $id_jurados = $_POST['id_jurados'] ?? null;
     $id_area = $_POST['area'] ?? null;
     $id_categoria = $_POST['categoria'] ?? null;
+    $ordem = $_POST['ordem'] ?? null;
 
     try {
-
         $stmt = $pdo->prepare("
             SELECT e.id_categoria_escola, ce.categoria_da_escola
             FROM Escolas e
@@ -80,8 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         $stmt = $pdo->prepare("
             INSERT INTO Trabalhos
-            (titulo, id_escolas, id_jurados, id_areas, id_categoria)
-            VALUES (?, ?, ?, ?, ?)
+            (titulo, id_escolas, id_jurados, id_areas, id_categoria, ordem)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
 
         $stmt->execute([
@@ -89,7 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $id_escolas,
             $id_jurados,
             $id_area,
-            $id_categoria
+            $id_categoria,
+            $ordem
         ]);
 
         $pdo->commit();
