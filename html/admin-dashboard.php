@@ -211,6 +211,7 @@ $categoria_escola = $stmtModalidade->fetch(PDO::FETCH_ASSOC);
                   <option value="5">CEJA</option>
                   <option value="6">INDÍGENA</option>
                   <option value="7">Municipal</option>
+                  <option value="7">Colégio</option>
                 </select>
 
                 <div id="campo-digitacaoEscola" style="display:none;">

@@ -33,12 +33,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         $categoriasPermitidas = [
             1 => [1, 4], // EEEP
-            2 => [1, 4], // EEMTI
+            2 => [1, 4,2,3], // EEMTI
             3 => [1, 4], // EEM
             4 => [2, 1, 4], // EEMPC
-            5 => [1, 4], // CEJA
+            5 => [2, 1,4], // CEJA
             6 => [2, 4], // INDÍGENA
-            7 => [3, 4]  // MUNICIPAL
+            7 => [3, 4],  // MUNICIPAL
+            8 => [1, 4] // COLÉGIO
         ];
 
         if (!isset($categoriasPermitidas[$modalidade])) {
@@ -80,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         $stmt = $pdo->prepare("
             INSERT INTO Trabalhos
-            (titulo, id_escolas, id_jurados, id_areas, id_categoria, ordem)
+            (titulo, id_escolas, id_jurados, id_areas, id_categoria, ord'em)
             VALUES (?, ?, ?, ?, ?, ?)
         ");
 

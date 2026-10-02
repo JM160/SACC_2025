@@ -47,6 +47,7 @@ if (!$escola) {
             <option value="5" <?= ($escola['id_categoria_escola'] === 'CEJA') ? 'selected' : '' ?>>CEJA</option>
             <option value="6" <?= ($escola['id_categoria_escola'] === 'INDÍGINA') ? 'selected' : '' ?>>INDÍGINA</option>
             <option value="7" <?= ($escola['id_categoria_escola'] === 'MUNICIPAL') ? 'selected' : '' ?>>MUNICIPAL</option>
+            <option value="8" <?= ($escola['id_categoria_escola'] === 'COLÉGIO') ? 'selected' : '' ?>>COLÉGIO</option>
         </select>
 
         <input type="hidden" name="id" value="<?= $escola['id_escolas'] ?>">

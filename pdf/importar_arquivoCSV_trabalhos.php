@@ -1,11 +1,14 @@
 <?php
 require_once '../php/Connect.php';
-function normalizarTexto($texto)
-{
-    $texto = trim($texto, " \t\n\r\0\x0B\";");
+function normalizarTexto($texto){
+    $texto = (string) $texto;
 
+    // Remove BOM e espaços invisíveis
+    $texto = preg_replace('/^\xEF\xBB\xBF/', '', $texto);
+    $texto = str_replace("\xC2\xA0", ' ', $texto);
+    $texto = trim($texto, " \t\n\r\0\x0B\"'");
     $texto = mb_strtolower($texto, 'UTF-8');
-
+    // Remove acentos
     $texto = strtr($texto, [
         'á' => 'a',
         'à' => 'a',
@@ -29,15 +32,28 @@ function normalizarTexto($texto)
         'ù' => 'u',
         'û' => 'u',
         'ü' => 'u',
-        'ç' => 'c'
+        'ç' => 'c',
+        'ñ' => 'n'
     ]);
 
-    return $texto;
+    $texto = str_replace(
+        ['–', '—', '-', '−'],
+        '-',
+        $texto
+    );
+
+    $texto = preg_replace('/\s+/', ' ', $texto);
+    $texto = preg_replace('/\s*-\s*/', ' - ', $texto);
+
+    return trim($texto);
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
-    if (!isset($_FILES['meu_arquivo']) || $_FILES['meu_arquivo']['error'] != 0) {
+    if (
+        !isset($_FILES['meu_arquivo']) ||
+        $_FILES['meu_arquivo']['error'] != 0
+    ) {
         die("Erro ao enviar o arquivo.");
     }
 
@@ -52,134 +68,267 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $pdo->beginTransaction();
 
         $stmt = $pdo->query(
-            "SELECT id_escolas, nome FROM Escolas"
+            "SELECT
+                e.id_escolas,
+                e.nome,
+                e.id_categoria_escola,
+                ce.categoria_da_escola
+             FROM Escolas e
+             LEFT JOIN categoria_escolas ce
+                ON e.id_categoria_escola = ce.id"
         );
 
         $escolasBanco = [];
 
         while ($escola = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $nomeEscola = normalizarTexto(
+                $escola['nome']
+            );
+            $categoriaEscola = normalizarTexto(
+                $escola['categoria_da_escola'] ?? ''
+            );
+            if ($nomeEscola == '' || $categoriaEscola == '') {
+                continue;
+            }
+            $chave = $categoriaEscola . '|' . $nomeEscola;
 
-            $escolasBanco[
-                normalizarTexto($escola['nome'])
-            ] = $escola['id_escolas'];
+            $escolasBanco[$chave] = [
+                'id' => $escola['id_escolas'],
+                'nome' => $nomeEscola,
+                'categoria' => $categoriaEscola
+            ];
         }
 
+        $categoriasEscolasBanco = [];
+        foreach ($escolasBanco as $escola) {
+            $categoria = $escola['categoria'];
+            if (!isset($categoriasEscolasBanco[$categoria])) {
+                $categoriasEscolasBanco[$categoria] = true;
+            }
+        }
+
+        uksort(
+            $categoriasEscolasBanco,
+            function ($a, $b) {
+                return strlen($b) - strlen($a);
+            }
+        );
+
         $stmt = $pdo->query(
-            "SELECT id_area, nome_area FROM Areas"
+            "SELECT
+                id_area,
+                nome_area
+             FROM Areas"
         );
 
         $areasBanco = [];
 
         while ($area = $stmt->fetch(PDO::FETCH_ASSOC)) {
-
-            $areasBanco[
-                normalizarTexto($area['nome_area'])
-            ] = $area['id_area'];
+            $nomeArea = normalizarTexto(
+                $area['nome_area']
+            );
+            $areasBanco[$nomeArea] = $area['id_area'];
         }
 
         $stmt = $pdo->query(
-            "SELECT id_categoria, nome_categoria FROM Categorias"
+            "SELECT
+                id_categoria,
+                nome_categoria
+             FROM Categorias"
         );
 
         $categoriasBanco = [];
 
         while ($categoria = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
-            $categoriasBanco[
-                normalizarTexto($categoria['nome_categoria'])
-            ] = $categoria['id_categoria'];
+            $nomeCategoria = normalizarTexto(
+                $categoria['nome_categoria']
+            );
+
+            $categoriasBanco[$nomeCategoria] =
+                $categoria['id_categoria'];
         }
 
-        $stmt = $pdo->query(
-            "SELECT id_jurados, nome FROM Jurados"
-        );
-
-        $juradosBanco = [];
-
-        while ($jurado = $stmt->fetch(PDO::FETCH_ASSOC)) {
-
-            $juradosBanco[
-                normalizarTexto($jurado['nome'])
-            ] = $jurado['id_jurados'];
-        }
-
-        fgetcsv($handle, 1000, ",");
+        fgetcsv($handle, 0, ",");
 
         $stmtTrabalho = $pdo->prepare(
             "INSERT INTO Trabalhos
-            (titulo, id_escolas, id_areas, id_categoria, id_jurados, ordem)
+            (
+                titulo,
+                id_escolas,
+                id_areas,
+                id_categoria,
+                id_jurados,
+                ordem
+            )
             VALUES (?, ?, ?, ?, ?, ?)"
         );
 
-        while (($linha = fgetcsv($handle, 1000, ",")) !== false) {
+        $numeroLinha = 1;
 
-            $titulo = trim($linha[0] ?? '');
-            $nome_escola = trim($linha[1] ?? '');
-            $nome_categoria = trim($linha[2] ?? '');
-            $nome_area = trim($linha[3] ?? '');
-            $nome_jurado = trim($linha[4] ?? '');
-            $ordem = trim($linha[5] ?? '');
+        while (
+            ($linha = fgetcsv($handle, 0, ",")) !== false
+        ) {
+            $numeroLinha++;
+            if (
+                count($linha) == 1 &&
+                trim($linha[0]) == ''
+            ) {
+                continue;
+            }
+
+            $titulo = trim(
+                $linha[0] ?? ''
+            );
+
+            $nomeEscolaCSV = trim(
+                $linha[1] ?? ''
+            );
+
+            $nomeCategoriaCSV = trim(
+                $linha[2] ?? ''
+            );
+
+            $nomeAreaCSV = trim(
+                $linha[3] ?? ''
+            );
 
             if ($titulo == '') {
                 continue;
             }
 
-            $escolaNormalizada = normalizarTexto($nome_escola);
+            $escolaNormalizada = normalizarTexto(
+                $nomeEscolaCSV
+            );
 
-            if (!isset($escolasBanco[$escolaNormalizada])) {
+            $categoriaEscolaCSV = '';
+            $nomeEscolaSemCategoria = '';
+
+            foreach (
+                $categoriasEscolasBanco as $categoria => $valor
+            ) {
+
+                if (
+                    $escolaNormalizada === $categoria ||
+                    str_starts_with(
+                        $escolaNormalizada,
+                        $categoria . ' '
+                    )
+                ) {
+                    $categoriaEscolaCSV = $categoria;
+
+                    $nomeEscolaSemCategoria = trim(
+                        substr(
+                            $escolaNormalizada,
+                            strlen($categoria)
+                        )
+                    );
+                    break;
+                }
+            }
+            if ($categoriaEscolaCSV == '') {
 
                 throw new Exception(
-                    "Escola não encontrada: " . $nome_escola .
-                    " | Trabalho: " . $titulo
+                    "Categoria da escola não encontrada na linha " .
+                    $numeroLinha .
+                    ": '" .
+                    $nomeEscolaCSV .
+                    "' | Trabalho: " .
+                    $titulo
                 );
             }
 
-            $id_escola = $escolasBanco[$escolaNormalizada];
+            $chaveEscola =
+                $categoriaEscolaCSV .
+                '|' .
+                $nomeEscolaSemCategoria;
 
-            $areaNormalizada = normalizarTexto($nome_area);
+            if (!isset($escolasBanco[$chaveEscola])) {
+
+                throw new Exception(
+                    "Escola não encontrada na linha " .
+                    $numeroLinha .
+                    ": '" .
+                    $nomeEscolaSemCategoria .
+                    "' | Categoria: '" .
+                    $categoriaEscolaCSV .
+                    "' | Valor no CSV: '" .
+                    $nomeEscolaCSV .
+                    "' | Trabalho: " .
+                    $titulo
+                );
+            }
+
+            $idEscola = $escolasBanco[$chaveEscola]['id'];
+
+            $areaNormalizada = normalizarTexto(
+                $nomeAreaCSV
+            );
 
             if (!isset($areasBanco[$areaNormalizada])) {
+                $idArea = null;
 
-                throw new Exception(
-                    "Área não encontrada: " . $nome_area .
-                    " | Trabalho: " . $titulo
-                );
-            }
+                foreach (
+                    $areasBanco as $areaBanco => $id
+                ) {
+                    if (
+                        normalizarTexto($areaBanco) ===
+                        $areaNormalizada
+                    ) {
+                        $idArea = $id;
+                        break;
+                    }
+                }
 
-            $id_area = $areasBanco[$areaNormalizada];
-
-            $categoriaNormalizada = normalizarTexto($nome_categoria);
-
-            if (!isset($categoriasBanco[$categoriaNormalizada])) {
-
-                throw new Exception(
-                    "Categoria não encontrada: " . $nome_categoria .
-                    " | Trabalho: " . $titulo
-                );
-            }
-
-            $id_categoria = $categoriasBanco[$categoriaNormalizada];
-
-            $id_jurado = null;
-
-            if ($nome_jurado != '') {
-
-                $juradoNormalizado = normalizarTexto($nome_jurado);
-
-                if (!isset($juradosBanco[$juradoNormalizado])) {
+                if ($idArea === null) {
 
                     throw new Exception(
-                        "Jurado não encontrado: " . $nome_jurado .
-                        " | Trabalho: " . $titulo
+                        "Área não encontrada na linha " .
+                        $numeroLinha .
+                        ": '" .
+                        $nomeAreaCSV .
+                        "' | Trabalho: " .
+                        $titulo
                     );
                 }
 
-                $id_jurado = $juradosBanco[$juradoNormalizado];
+            } else {
+
+                $idArea =
+                    $areasBanco[$areaNormalizada];
             }
 
-            if ($ordem == '') {
-                $ordem = 0;
+            $categoriaNormalizada =
+                normalizarTexto(
+                    $nomeCategoriaCSV
+                );
+
+            if (
+                !isset(
+                    $categoriasBanco[
+                        $categoriaNormalizada
+                    ]
+                )
+            ) {
+
+                throw new Exception(
+                    "Categoria não encontrada na linha " .
+                    $numeroLinha .
+                    ": '" .
+                    $nomeCategoriaCSV .
+                    "' | Trabalho: " .
+                    $titulo
+                );
             }
+
+            $idCategoria =
+                $categoriasBanco[
+                    $categoriaNormalizada
+                ];
+
+            $idJurado = null;
+
+            $ordem = 0;
 
             $stmtVerifica = $pdo->prepare(
                 "SELECT id_trabalhos
@@ -190,38 +339,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             );
 
             $stmtVerifica->execute([
-                $id_escola,
-                $id_area
+                $idEscola,
+                $idArea
             ]);
 
             if ($stmtVerifica->fetch()) {
 
                 throw new Exception(
-                    "A escola '" . $nome_escola .
-                    "' já possui um trabalho cadastrado na área '" .
-                    $nome_area . "'."
+                    "A escola '" .
+                    $nomeEscolaCSV .
+                    "' já possui um trabalho cadastrado " .
+                    "na área '" .
+                    $nomeAreaCSV .
+                    "'."
                 );
             }
 
-        
-
             $stmtTrabalho->execute([
                 $titulo,
-                $id_escola,
-                $id_area,
-                $id_categoria,
-                $id_jurado,
+                $idEscola,
+                $idArea,
+                $idCategoria,
+                $idJurado,
                 $ordem
-            ]);
-
-            $stmtAtualizaEscola = $pdo->prepare(
-                "UPDATE Escolas
-                 SET total_trabalhos = total_trabalhos + 1
-                 WHERE id_escolas = ?"
-            );
-
-            $stmtAtualizaEscola->execute([
-                $id_escola
             ]);
         }
 
@@ -229,7 +369,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         fclose($handle);
 
-        header('Location: ../html/admin-trabalhos.php?msg=importado');
+        header(
+            'Location: ../html/admin-trabalhos.php?msg=importado'
+        );
+
         exit();
 
     } catch (Exception $e) {
@@ -240,6 +383,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         fclose($handle);
 
-        die("Erro ao importar trabalhos: " . $e->getMessage());
+        die(
+            "Erro ao importar trabalhos: " .
+            $e->getMessage()
+        );
     }
 }

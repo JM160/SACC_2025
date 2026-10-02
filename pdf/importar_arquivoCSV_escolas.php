@@ -72,12 +72,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         while (($linha = fgetcsv($handle, 1000, ",")) !== false) {
 
-            $nome = trim($linha[0] ?? '');
-            $municipio = trim($linha[1] ?? '');
+            $nome_categoria = trim($linha[0] ?? '');
+            $nome = trim($linha[1] ?? '');
+            $municipio = trim($linha[2] ?? '');
             //$focalizada = trim($linha[2] ?? '');
             //$ide = trim($linha[3] ?? '');
-            $IDEB = trim($linha[2] ?? '');
-            $nome_categoria = trim($linha[3] ?? '');
+            $IDEB = trim($linha[3] ?? '');
             $total_trabalhos = trim($linha[4] ?? '');
 
             // Ignorar linha vazia
