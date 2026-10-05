@@ -6,16 +6,22 @@ error_reporting(E_ALL);
 session_start();
 include_once("../php/Connect.php");
 
+$escolas = $pdo->query("SELECT e.id_escolas, e.nome, ce.categoria_da_escola FROM Escolas e LEFT JOIN Categoria_escolas ce ON e.id_categoria_escola = ce.id ORDER BY e.nome")->fetchAll(PDO::FETCH_ASSOC);
+$categorias = $pdo->query("SELECT id_categoria, nome_categoria FROM Categorias ORDER BY nome_categoria")->fetchAll(PDO::FETCH_ASSOC);
+$areas = $pdo->query("SELECT id_area, nome_area FROM Areas ORDER BY nome_area")->fetchAll(PDO::FETCH_ASSOC);
+
 $sql = "SELECT 
     t.id_trabalhos,
     t.titulo,
     t.ordem,
     e.nome AS escola,
     c.nome_categoria,
-    a.nome_area
+    a.nome_area,
+    ce.categoria_da_escola
 FROM Trabalhos t
 LEFT JOIN Escolas e ON t.id_escolas = e.id_escolas
 LEFT JOIN Categorias c ON t.id_categoria = c.id_categoria
+LEFT JOIN categoria_escolas ce ON e.id_categoria_escola = ce.id
 LEFT JOIN Areas a ON t.id_areas = a.id_area
 WHERE 1=1";
 
@@ -89,6 +95,45 @@ $total_trabalhos = count($trabalhos);
         </div>
         <button type="submit" class="botao-arquivo" id="importar">Importar</button>
       </form>
+
+      <br>
+      <div class="admin-card-filter mb-4">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <label class="admin-form-label">Escola</label>
+            <select id="Filtro_escola" class="form-select admin-form-select">
+              <option value="">Selecione a Escola</option>
+              <?php foreach ($escolas as $escola): ?>
+                <option value="<?= htmlspecialchars(($escola['categoria_da_escola'] ?? '') . ' ' . $escola['nome']) ?>">
+                  <?= htmlspecialchars(($escola['categoria_da_escola'] ?? '') . ' ' . $escola['nome']) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+      </div>
+
+      <div class="col-md-4">
+          <label class="admin-form-label">Categoria</label>
+          <select id="Filtro_categoria" class="form-select admin-form-select">
+            <option value="">Selecione a Categoria</option>
+            <?php foreach ($categorias as $categoria): ?>
+              <option value="<?= htmlspecialchars($categoria['id_categoria']) ?>">
+                <?= htmlspecialchars($categoria['nome_categoria']) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+      <div class="col-md-4">
+            <label class="admin-form-label">Área</label>
+            <select id="Filtro_area" class="form-select admin-form-select">
+              <option value="">Selecione a Área</option>
+              <?php foreach ($areas as $area): ?>
+                <option value="<?= htmlspecialchars($area['nome_area']) ?>">
+                  <?= htmlspecialchars($area['nome_area']) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
     </div>
     </div>
 
@@ -146,8 +191,8 @@ $total_trabalhos = count($trabalhos);
               <?php foreach ($trabalhos as $row): ?>
                 <tr>
                   <td class="ps-4 td-item-title"><?= htmlspecialchars($row['titulo']) ?></td>
-                  <td><?= htmlspecialchars($row['escola'] ?? '-') ?></td>
-                  <td><span class="category-pill"><?= htmlspecialchars($row['nome_categoria'] ?? '-') ?></span></td>
+                  <td><?= htmlspecialchars(($row['categoria_da_escola'] ?? '') . ' ' . $row['escola']) ?></td>
+                  <td><span class="category-pill"><?=htmlspecialchars($row['nome_categoria']) ?></span></td>
                   <td><?= htmlspecialchars($row['nome_area'] ?? '-') ?></td>
                   <td style="text-align: center;" ><?= htmlspecialchars($row['ordem'] ?? '-') ?></td>
                   <td class="text-center pe-4 text-nowrap">
@@ -200,6 +245,35 @@ $total_trabalhos = count($trabalhos);
         $('#overlay').removeClass('show');
       }
     });
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const filtroEscola = document.getElementById("Filtro_escola");
+        const filtroCategoria = document.getElementById("Filtro_categoria");
+        const filtroArea = document.getElementById("Filtro_area");
+        const linhas = document.querySelectorAll("#workTable tbody tr");
+
+        function filtrarTabela() {
+          const escolaSelecionada = filtroEscola.value.toLowerCase();
+          const categoriaSelecionada = filtroCategoria.options[filtroCategoria.selectedIndex].text.toLowerCase();
+          const areaSelecionada = filtroArea.value.toLowerCase();
+
+          linhas.forEach(tr => {
+            const escola = tr.children[1].textContent.toLowerCase();
+            const categoria = tr.children[2].textContent.toLowerCase();
+            const area = tr.children[3].textContent.toLowerCase();
+
+            const escolaOk = !escolaSelecionada || escola.includes(escolaSelecionada);
+            const categoriaOk = !filtroCategoria.value || categoria === categoriaSelecionada;
+            const areaOk = !areaSelecionada || area.includes(areaSelecionada);
+
+            tr.style.display = (escolaOk && categoriaOk && areaOk) ? "" : "none";
+          });
+        }
+
+        filtroEscola.addEventListener("change", filtrarTabela);
+        filtroCategoria.addEventListener("change", filtrarTabela);
+        filtroArea.addEventListener("change", filtrarTabela);
+      });
   </script>
 </body>
 
